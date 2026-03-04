@@ -1,6 +1,7 @@
 use clap::Parser;
 
 mod config;
+mod flow;
 mod parser;
 mod protocol;
 
