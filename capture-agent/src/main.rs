@@ -1,6 +1,7 @@
 use clap::Parser;
 
 mod config;
+mod parser;
 mod protocol;
 
 #[derive(Parser, Debug)]
