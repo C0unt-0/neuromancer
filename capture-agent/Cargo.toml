@@ -1,0 +1,23 @@
+[package]
+name = "cyberspace-capture"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pcap = { version = "2", features = ["capture-stream"] }
+etherparse = "0.16"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.24"
+petgraph = "0.7"
+rmp-serde = "1"
+serde = { version = "1", features = ["derive"] }
+maxminddb = "0.24"
+clap = { version = "4", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+trust-dns-resolver = "0.23"
+libc = "0.2"
+futures-util = "0.3"
+
+[dev-dependencies]
+tokio-test = "0.4"
