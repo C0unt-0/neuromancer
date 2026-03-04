@@ -2,6 +2,7 @@ use clap::Parser;
 
 mod config;
 mod flow;
+mod graph;
 mod parser;
 mod protocol;
 
