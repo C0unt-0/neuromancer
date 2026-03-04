@@ -1,6 +1,7 @@
 use clap::Parser;
 
 mod config;
+mod protocol;
 
 #[derive(Parser, Debug)]
 #[command(name = "cyberspace-capture", about = "Cyberdeck network capture agent")]
