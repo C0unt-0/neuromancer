@@ -4,6 +4,7 @@ use clap::Parser;
 
 mod config;
 mod capture;
+mod enrichment;
 mod parser;
 mod flow;
 mod graph;
