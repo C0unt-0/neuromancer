@@ -1,0 +1,10 @@
+{
+  "name": "cyberdeck",
+  "private": true,
+  "scripts": {
+    "dev:orchestrator": "pnpm --filter cyberdeck-orchestrator dev",
+    "dev:web": "pnpm --filter cyberdeck-web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  }
+}
