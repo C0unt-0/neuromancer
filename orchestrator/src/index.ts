@@ -3,14 +3,16 @@ import fastifyWebsocket from "@fastify/websocket";
 import fastifyCors from "@fastify/cors";
 import { CONFIG } from "./config.js";
 
-const server = Fastify({
-  logger: {
-    transport: {
-      target: "pino-pretty",
-      options: { translateTime: "HH:MM:ss Z", ignore: "pid,hostname" },
-    },
-  },
-});
+const logger = process.env.NODE_ENV === "production"
+  ? { level: "info" }
+  : {
+      transport: {
+        target: "pino-pretty",
+        options: { translateTime: "HH:MM:ss Z", ignore: "pid,hostname" },
+      },
+    };
+
+const server = Fastify({ logger });
 
 async function start() {
   await server.register(fastifyCors, { origin: true });

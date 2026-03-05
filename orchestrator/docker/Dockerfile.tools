@@ -26,5 +26,6 @@ RUN nuclei -update-templates 2>/dev/null || true
 
 RUN useradd -m -s /bin/bash operator
 WORKDIR /home/operator
+USER operator
 
 CMD ["sleep", "infinity"]
