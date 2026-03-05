@@ -1,9 +1,15 @@
 import { z } from "zod";
 
+const cidrFormat = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2}$/;
+
+const cidrString = z
+  .string()
+  .refine((s) => cidrFormat.test(s), { message: "Invalid CIDR format" });
+
 export const ScopeConfigSchema = z.object({
-  allowedCidrs: z.array(z.string()),
+  allowedCidrs: z.array(cidrString),
   allowedDomains: z.array(z.string()).optional(),
-  blockedCidrs: z.array(z.string()).default([
+  blockedCidrs: z.array(cidrString).default([
     "127.0.0.0/8",
     "169.254.0.0/16",
     "224.0.0.0/4",
