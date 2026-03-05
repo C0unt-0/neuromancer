@@ -9,7 +9,7 @@ pub struct NodeData {
     pub is_local: bool,
     pub total_bytes_in: u64,
     pub total_bytes_out: u64,
-    pub active_connections: u32,
+    pub total_packets_out: u64,
     pub packets_per_sec: f64,
     pub first_seen: u64,
     pub last_seen: u64,
@@ -76,7 +76,7 @@ pub struct NodeUpdate {
     pub id: String,
     pub total_bytes_in: Option<u64>,
     pub total_bytes_out: Option<u64>,
-    pub active_connections: Option<u32>,
+    pub total_packets_out: Option<u64>,
     pub packets_per_sec: Option<f64>,
     pub last_seen: Option<u64>,
 }

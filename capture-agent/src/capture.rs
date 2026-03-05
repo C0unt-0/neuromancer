@@ -32,7 +32,8 @@ pub async fn start_capture(
         while let Ok(packet) = cap.next_packet() {
             if let Some(parsed) = parse_packet(packet.data) {
                 if tx.blocking_send(parsed).is_err() {
-                    break; // Receiver dropped
+                    tracing::info!("Capture pipeline shutting down: receiver dropped");
+                    break;
                 }
             }
         }

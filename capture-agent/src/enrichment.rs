@@ -18,7 +18,13 @@ impl Enricher {
         );
 
         let geoip = geoip_path.and_then(|path| {
-            maxminddb::Reader::open_readfile(path).ok()
+            match maxminddb::Reader::open_readfile(path) {
+                Ok(reader) => Some(reader),
+                Err(e) => {
+                    tracing::error!("Failed to load GeoIP database from {}: {}", path, e);
+                    None
+                }
+            }
         });
 
         if geoip.is_some() {
@@ -63,7 +69,7 @@ impl Enricher {
         })
     }
 
-    /// Classify whether an IP address is in a private (RFC 1918) range.
+    /// Classify whether an IP address is in a private/reserved range (RFC 1918, loopback, link-local).
     pub fn is_private(ip: &str) -> bool {
         match IpAddr::from_str(ip) {
             Ok(IpAddr::V4(v4)) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),

@@ -17,7 +17,13 @@ pub async fn start_ws_server(
     tracing::info!("WebSocket server listening on port {}", port);
 
     loop {
-        let (stream, addr) = listener.accept().await?;
+        let (stream, addr) = match listener.accept().await {
+            Ok(conn) => conn,
+            Err(e) => {
+                tracing::error!("Failed to accept connection: {}", e);
+                continue;
+            }
+        };
         tracing::info!("New WebSocket connection from {}", addr);
         let graph = graph.clone();
 
@@ -32,28 +38,32 @@ pub async fn start_ws_server(
 
             let (mut write, _read) = ws_stream.split();
 
-            // Send initial snapshot
-            {
+            // Send initial snapshot — extract data inside lock, serialize outside
+            let snapshot = {
                 let mut g = graph.write().await;
-                let snapshot = g.snapshot();
-                let data = match rmp_serde::to_vec(&snapshot) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        tracing::error!("Failed to serialize snapshot: {}", e);
-                        return;
-                    }
-                };
-                if write.send(Message::Binary(data)).await.is_err() {
+                g.snapshot()
+            }; // lock dropped here
+            let data = match rmp_serde::to_vec(&snapshot) {
+                Ok(d) => d,
+                Err(e) => {
+                    tracing::error!("Failed to serialize snapshot: {}", e);
                     return;
                 }
+            };
+            if write.send(Message::Binary(data)).await.is_err() {
+                return;
             }
 
             // Send deltas at fixed interval
             let mut tick = interval(Duration::from_millis(config::DELTA_INTERVAL_MS));
             loop {
                 tick.tick().await;
-                let mut g = graph.write().await;
-                let delta = g.delta();
+
+                // Extract delta inside lock, serialize outside
+                let delta = {
+                    let mut g = graph.write().await;
+                    g.delta()
+                }; // lock dropped here
 
                 // Only send if there are actual changes
                 if delta.nodes_added.is_empty()

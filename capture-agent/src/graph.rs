@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::net::Ipv4Addr;
+use std::str::FromStr;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::config;
 use crate::flow::FlowAggregator;
 use crate::parser::ParsedPacket;
 use crate::protocol::*;
@@ -33,7 +36,7 @@ impl GraphBuilder {
         // Update node stats
         if let Some(node) = self.known_nodes.get_mut(&pkt.src_ip) {
             node.total_bytes_out += pkt.bytes;
-            node.active_connections += 1; // Simplified
+            node.total_packets_out += 1;
             node.last_seen = now;
             self.dirty_nodes.insert(pkt.src_ip.clone());
         }
@@ -43,13 +46,18 @@ impl GraphBuilder {
             self.dirty_nodes.insert(pkt.dst_ip.clone());
         }
 
-        // Ensure edge exists
+        // Ensure edge exists — normalize IPs to match make_edge_id ordering
         let edge_id = make_edge_id(&pkt.src_ip, &pkt.dst_ip, &pkt.protocol);
+        let (sorted_src, sorted_dst) = if pkt.src_ip <= pkt.dst_ip {
+            (pkt.src_ip.clone(), pkt.dst_ip.clone())
+        } else {
+            (pkt.dst_ip.clone(), pkt.src_ip.clone())
+        };
         if !self.known_edges.contains_key(&edge_id) {
             let edge = EdgeData {
                 id: edge_id.clone(),
-                source_ip: pkt.src_ip.clone(),
-                target_ip: pkt.dst_ip.clone(),
+                source_ip: sorted_src,
+                target_ip: sorted_dst,
                 protocol: pkt.protocol.clone(),
                 total_bytes: pkt.bytes,
                 total_packets: 1,
@@ -59,8 +67,7 @@ impl GraphBuilder {
             };
             self.known_edges.insert(edge_id.clone(), edge);
             self.new_edges.insert(edge_id);
-        } else {
-            let edge = self.known_edges.get_mut(&edge_id).unwrap();
+        } else if let Some(edge) = self.known_edges.get_mut(&edge_id) {
             edge.total_bytes += pkt.bytes;
             edge.total_packets += 1;
             edge.last_seen = now;
@@ -70,6 +77,10 @@ impl GraphBuilder {
 
     fn ensure_node(&mut self, ip: &str, now: u64) {
         if !self.known_nodes.contains_key(ip) {
+            if self.known_nodes.len() >= config::MAX_NODES {
+                tracing::warn!("MAX_NODES limit ({}) reached, dropping new node {}", config::MAX_NODES, ip);
+                return;
+            }
             let node = NodeData {
                 id: ip.to_string(),
                 ip: ip.to_string(),
@@ -78,7 +89,7 @@ impl GraphBuilder {
                 is_local: is_rfc1918(ip),
                 total_bytes_in: 0,
                 total_bytes_out: 0,
-                active_connections: 0,
+                total_packets_out: 0,
                 packets_per_sec: 0.0,
                 first_seen: now,
                 last_seen: now,
@@ -115,7 +126,7 @@ impl GraphBuilder {
                     id: n.id.clone(),
                     total_bytes_in: Some(n.total_bytes_in),
                     total_bytes_out: Some(n.total_bytes_out),
-                    active_connections: Some(n.active_connections),
+                    total_packets_out: Some(n.total_packets_out),
                     packets_per_sec: Some(n.packets_per_sec),
                     last_seen: Some(n.last_seen),
                 })
@@ -168,7 +179,7 @@ impl GraphBuilder {
 fn now_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_else(|_| Duration::from_secs(0))
         .as_millis() as u64
 }
 
@@ -181,14 +192,10 @@ fn make_edge_id(src: &str, dst: &str, proto: &str) -> String {
 }
 
 fn is_rfc1918(ip: &str) -> bool {
-    ip.starts_with("10.")
-        || ip.starts_with("192.168.")
-        || (ip.starts_with("172.") && {
-            ip.split('.').nth(1)
-                .and_then(|s| s.parse::<u8>().ok())
-                .map(|n| (16..=31).contains(&n))
-                .unwrap_or(false)
-        })
+    match Ipv4Addr::from_str(ip) {
+        Ok(addr) => addr.is_private() || addr.is_loopback() || addr.is_link_local(),
+        Err(_) => false,
+    }
 }
 
 fn classify_node_type(ip: &str) -> NodeType {

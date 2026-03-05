@@ -32,7 +32,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
     rt.block_on(async move {
         let graph = Arc::new(RwLock::new(graph::GraphBuilder::new()));
         let (tx, mut rx) = mpsc::channel::<parser::ParsedPacket>(10_000);

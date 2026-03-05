@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use crate::config;
 use crate::parser::ParsedPacket;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -50,8 +51,17 @@ impl FlowAggregator {
         let key = FlowKey::from_packet(pkt);
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_else(|_| Duration::from_secs(0))
             .as_millis() as u64;
+
+        // Enforce MAX_FLOWS: evict stale flows if at capacity
+        if !self.flows.contains_key(&key) && self.flows.len() >= config::MAX_FLOWS {
+            self.evict_stale(config::FLOW_TIMEOUT_SEC * 1000);
+            if self.flows.len() >= config::MAX_FLOWS {
+                tracing::warn!("MAX_FLOWS limit ({}) reached, dropping new flow", config::MAX_FLOWS);
+                return;
+            }
+        }
 
         let flow = self.flows.entry(key.clone()).or_insert_with(|| FlowState {
             key: key.clone(),
@@ -87,7 +97,7 @@ impl FlowAggregator {
     pub fn evict_stale(&mut self, timeout_ms: u64) {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_else(|_| Duration::from_secs(0))
             .as_millis() as u64;
         self.flows
             .retain(|_, flow| now.saturating_sub(flow.last_seen) < timeout_ms);
