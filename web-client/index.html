@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CYBERDECK // Neural Interface v2.0</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- ── Top bar ── -->
+      <div id="topbar">
+        <div class="logo">CYBER<span>DECK</span></div>
+
+        <div class="scope-badge" title="Click to edit engagement scope">
+          <div class="scope-dot"></div>
+          <span id="scope-label">SCOPE: 10.10.11.0/24</span>
+        </div>
+
+        <div class="topbar-divider"></div>
+
+        <div class="running-tools-badge" id="running-tools" style="display: none">
+          <div class="spinner"></div>
+          <span id="running-tools-count">0 tools running</span>
+        </div>
+
+        <div class="topbar-stats">
+          <div class="stat-item">
+            <span class="stat-label">Nodes</span>
+            <span class="stat-value" id="stat-nodes">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Edges</span>
+            <span class="stat-value" id="stat-edges">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">PPS</span>
+            <span class="stat-value" id="stat-pps">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">BW</span>
+            <span class="stat-value" id="stat-bw">0</span>
+          </div>
+          <div class="stat-item">
+            <span class="pulse-dot"></span>
+            <span class="stat-value" style="color: var(--green); font-size: 10px">LIVE</span>
+          </div>
+        </div>
+
+        <div class="cmd-k-hint" id="cmd-k-trigger">
+          <span>Search / Run</span>
+          <kbd>&#x2318;</kbd><kbd>K</kbd>
+        </div>
+      </div>
+
+      <!-- ── Left panel ── -->
+      <div id="left-panel">
+        <div class="panel-section">
+          <div class="panel-title">&#x25C6; Toolbox</div>
+          <div class="tool-categories" id="tool-categories"></div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-title">&#x25C6; Protocol Filter</div>
+          <div class="filter-grid" id="protocol-filters"></div>
+        </div>
+
+        <div class="panel-section" style="flex: 1">
+          <div class="panel-title">&#x25C6; Active Targets</div>
+          <div class="node-list" id="node-list"></div>
+        </div>
+      </div>
+
+      <!-- ── 3D Viewport ── -->
+      <div id="viewport">
+        <canvas id="three-canvas"></canvas>
+        <div class="viewport-overlay crosshair"></div>
+        <div class="viewport-overlay corner-bracket tl"></div>
+        <div class="viewport-overlay corner-bracket tr"></div>
+        <div class="viewport-overlay corner-bracket bl"></div>
+        <div class="viewport-overlay corner-bracket br"></div>
+        <div class="viewport-overlay hud-top">
+          <div class="hud-label">CYBERDECK // TOPOLOGY MATRIX</div>
+        </div>
+        <div class="viewport-overlay zoom-indicator" id="zoom-ind">ZOOM 1.0x</div>
+      </div>
+
+      <!-- ── Right panel: Detail + AI Chat ── -->
+      <div id="right-panel">
+        <div class="detail-card" id="detail-card">
+          <div class="detail-header">
+            <div class="detail-icon" id="detail-icon">&#x1F5A5;</div>
+            <div>
+              <div class="detail-name" id="detail-name">Select a target</div>
+              <div class="detail-subtitle" id="detail-subtitle">
+                Click or right-click a node to interact
+              </div>
+            </div>
+          </div>
+          <div class="detail-grid" id="detail-grid" style="display: none">
+            <div class="detail-metric">
+              <div class="detail-metric-label">Ports</div>
+              <div class="detail-metric-value" style="color: var(--cyan)" id="d-ports">&mdash;</div>
+            </div>
+            <div class="detail-metric">
+              <div class="detail-metric-label">Services</div>
+              <div class="detail-metric-value" style="color: var(--magenta)" id="d-services">&mdash;</div>
+            </div>
+            <div class="detail-metric">
+              <div class="detail-metric-label">Vulns</div>
+              <div class="detail-metric-value" style="color: var(--red)" id="d-vulns">&mdash;</div>
+            </div>
+            <div class="detail-metric">
+              <div class="detail-metric-label">Bandwidth</div>
+              <div class="detail-metric-value" style="color: var(--green)" id="d-bw">&mdash;</div>
+            </div>
+          </div>
+          <div class="detail-actions" id="detail-actions" style="display: none">
+            <div class="detail-action-btn" data-action="scan">
+              <span class="btn-icon">&#x1F50D;</span>Scan Ports
+            </div>
+            <div class="detail-action-btn" data-action="enum">
+              <span class="btn-icon">&#x1F4CB;</span>Enumerate
+            </div>
+            <div class="detail-action-btn" data-action="vuln">
+              <span class="btn-icon">&#x1F6E1;</span>Vuln Check
+            </div>
+            <div class="detail-action-btn danger" data-action="exploit">
+              <span class="btn-icon">&#x26A1;</span>Exploit
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Chat -->
+        <div class="chat-section">
+          <div class="chat-header">
+            <span style="font-size: 14px">&#x1F916;</span>
+            <span class="chat-header-title">AI Operator</span>
+            <span class="chat-header-model">claude-sonnet-4-5</span>
+          </div>
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-msg assistant">
+              <div class="chat-bubble">
+                Cyberdeck online. I can see the network topology. Select a
+                target or tell me what you want to investigate.
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-area">
+            <textarea
+              class="chat-input"
+              id="chat-input"
+              rows="1"
+              placeholder="Ask AI or type a command..."
+              spellcheck="false"
+            ></textarea>
+            <button class="chat-send-btn" id="chat-send" title="Send">&#x25B6;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Bottom panel: Terminal ── -->
+      <div id="bottom-panel">
+        <div class="bottom-tabs">
+          <div class="bottom-tab active" data-tab="terminal">&#x2B22; Terminal</div>
+          <div class="bottom-tab" data-tab="traffic">&#x1F4CA; Traffic</div>
+          <div class="bottom-tab" data-tab="packets">&#x1F4E1; Packets</div>
+          <div class="bottom-tab-tools">
+            <button title="Clear terminal" id="btn-clear-term">&#x232B;</button>
+            <button title="New tab">+</button>
+          </div>
+        </div>
+        <div class="terminal-pane" id="terminal-pane">
+          <div class="terminal-output" id="term-output"></div>
+          <div class="terminal-input-line">
+            <span class="terminal-prompt-symbol">cyberdeck@local <span style="color: var(--green)">&rarr;</span></span>
+            <input
+              class="terminal-input"
+              id="term-input"
+              type="text"
+              placeholder="Type command or ? for help"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+        <div class="traffic-graph-pane" id="traffic-pane">
+          <canvas id="graph-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Radial context menu -->
+    <div id="radial-menu">
+      <div class="radial-center" id="radial-center-icon">&#x2B21;</div>
+    </div>
+
+    <!-- Command palette -->
+    <div id="command-palette">
+      <div class="cmd-palette-box">
+        <div class="cmd-palette-input-wrap">
+          <span class="search-icon">&#x2315;</span>
+          <input
+            class="cmd-palette-input"
+            id="cmd-palette-input"
+            placeholder="Search tools, targets, actions..."
+            spellcheck="false"
+            autocomplete="off"
+          />
+          <span class="cmd-palette-hint">ESC to close</span>
+        </div>
+        <div class="cmd-palette-results" id="cmd-palette-results"></div>
+      </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <!-- Toasts -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
